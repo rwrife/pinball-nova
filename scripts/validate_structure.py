@@ -134,9 +134,14 @@ for meta in list((ROOT / "Assets").rglob("*.meta")):
 # Generated Unity folders must not be tracked.
 try:
     tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines()
-except Exception as exc:  # not a git checkout (e.g. exported tarball)
+except Exception as exc:
     tracked = []
-    print(f"note: git ls-files unavailable ({exc}); skipping tracked-folder check")
+    fail(f"git ls-files unavailable; cannot check tracked Unity folders: {exc}")
+if not tracked:
+    fail("git ls-files returned no tracked files; checkout must retain .git metadata")
+for required in REQUIRED:
+    if required not in tracked:
+        fail(f"required file not tracked: {required}")
 for path in tracked:
     if re.match(r"^(Library|Temp|Obj|Build|Builds|Logs|UserSettings)/", path):
         fail(f"generated Unity path is tracked: {path}")

@@ -17,7 +17,9 @@ jobs:
   structure:
     runs-on: ubuntu-latest
     container:
-      image: python:3.12-slim
+      # Full image includes git; slim checkout falls back to an archive and
+      # silently skips validator's tracked-folder check.
+      image: python:3.12
       options: --user 1001
     defaults:
       run:
@@ -68,6 +70,7 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
             echo "message=Unity jobs blocked: repository secrets not configured (${missing[*]})" >> "$GITHUB_OUTPUT"
           fi
+          # Preflight is informational; final unity-status check fails closed.
 
   editmode-tests:
     needs: unity-secrets-preflight
@@ -139,3 +142,14 @@ jobs:
               echo "- Unity EditMode/build lanes were NOT executed. No results are being claimed."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          # Fail when the Unity lanes actually ran and failed. Missing secrets is
+          # an environment blocker: lanes report as skipped (never green) and the
+          # summary above carries the exact blocker text.
+          for r in "$EDITMODE" "$BUILD"; do
+            case "$r" in
+              failure|cancelled|timed_out)
+                echo "Unity lane failed: $r" >&2
+                exit 1
+                ;;
+            esac
+          done
