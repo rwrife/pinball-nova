@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Non-Unity Linux gate: repo structure + identifier consistency. No secrets needed.
+  structure:
+    runs-on: ubuntu-latest
+    container:
+      # Full image includes git; slim checkout falls back to an archive and
+      # silently skips validator's tracked-folder check.
+      image: python:3.12
+      options: --user 1001
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Validate Unity project structure and identifiers
+        run: python3 scripts/validate_structure.py
+      - name: Prove identifier drift fails gate
+        run: |
+          cp ProjectSettings/ProjectSettings.asset "$RUNNER_TEMP/ProjectSettings.asset"
+          trap 'cp "$RUNNER_TEMP/ProjectSettings.asset" ProjectSettings/ProjectSettings.asset' EXIT
+          python3 -c 'from pathlib import Path; p=Path("ProjectSettings/ProjectSettings.asset"); p.write_text(p.read_text().replace("Android: com.infinityball.pinballnova", "Android: com.example.invalid"))'
+          if python3 scripts/validate_structure.py; then
+            echo 'validator did not reject identifier drift' >&2
+            exit 1
+          fi
+          echo 'validator rejected identifier drift as expected' 
+
+  # Unity jobs need the three license secret NAMES below. They are referenced by
+  # name only; values are never read, printed, or logged by this workflow.
+  unity-secrets-preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+      message: ${{ steps.check.outputs.message }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - id: check
+        env:
+          UNITY_LICENSE_VALUE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL_VALUE: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD_VALUE: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          missing=()
+          [ -z "${UNITY_LICENSE_VALUE}" ] && missing+=(UNITY_LICENSE)
+          [ -z "${UNITY_EMAIL_VALUE}" ] && missing+=(UNITY_EMAIL)
+          [ -z "${UNITY_PASSWORD_VALUE}" ] && missing+=(UNITY_PASSWORD)
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "message=Unity license secrets present" >> "$GITHUB_OUTPUT"
+          else
+            # Names only. Values intentionally never echoed.
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "message=Unity jobs blocked: repository secrets not configured (${missing[*]})" >> "$GITHUB_OUTPUT"
+          fi
+          # Preflight is informational; final unity-status check fails closed.
+
+  editmode-tests:
+    needs: unity-secrets-preflight
+    if: needs.unity-secrets-preflight.outputs.available == 'true'
+    name: EditMode tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          testMode: EditMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: editmode-test-results
+          path: artifacts
+
+  windows-build:
+    needs: unity-secrets-preflight
+    if: needs.unity-secrets-preflight.outputs.available == 'true'
+    name: StandaloneWindows64 build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          targetPlatform: StandaloneWindows64
+          buildName: PinballNova
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows64-build
+          path: build/StandaloneWindows64
+
+  # Explicit, always-visible record when Unity lanes cannot run. A skipped job
+  # alone hides the reason; this one publishes the exact blocker as a check.
+  unity-status:
+    needs: [unity-secrets-preflight, editmode-tests, windows-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Unity lane status
+        env:
+          AVAILABLE: ${{ needs.unity-secrets-preflight.outputs.available }}
+          MESSAGE: ${{ needs.unity-secrets-preflight.outputs.message }}
+          EDITMODE: ${{ needs.editmode-tests.result }}
+          BUILD: ${{ needs.windows-build.result }}
+        run: |
+          {
+            echo "## Unity CI lanes"
+            if [ "$AVAILABLE" = "true" ]; then
+              echo "- Secrets present. EditMode tests: \`$EDITMODE\`; Windows build: \`$BUILD\`."
+            else
+              echo "- BLOCKED: $MESSAGE"
+              echo "- Unity EditMode/build lanes were NOT executed. No results are being claimed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Fail when the Unity lanes actually ran and failed. Missing secrets is
+          # an environment blocker: lanes report as skipped (never green) and the
+          # summary above carries the exact blocker text.
+          for r in "$EDITMODE" "$BUILD"; do
+            case "$r" in
+              failure|cancelled|timed_out)
+                echo "Unity lane failed: $r" >&2
+                exit 1
+                ;;
+            esac
+          done

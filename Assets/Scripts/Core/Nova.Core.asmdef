@@ -1,0 +1,6 @@
+{
+  "name": "Nova.Core",
+  "rootNamespace": "Nova.Core",
+  "references": [],
+  "noEngineReferences": true
+}
