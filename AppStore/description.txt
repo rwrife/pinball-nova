@@ -1,0 +1,12 @@
+Pinball Nova is a local-first 3D pinball game with original tables, physics-honest flippers, and modern arcade effects. Play on Windows with keyboard, mouse, or gamepad, and on phones and tablets with touch controls.
+
+Planned features:
+- Two original tables: a quick classic layout and a lane-chain table with a multiball wizard mode.
+- Bumpers, slingshots, targets, rollovers, ball save, and multiball.
+- A personal record book of high scores and longest multiballs, stored only on your device.
+- Settings for flipper strength, screen shake, flash intensity, remappable controls, and colorblind-safe palettes.
+- Optional tilt-nudge on mobile, always with a button or keyboard alternative.
+
+No account, no ads, no in-app purchases, and no network connection required. Your records and settings never leave your device.
+
+Status: in development. This description lists planned features and will be updated as each one ships.
