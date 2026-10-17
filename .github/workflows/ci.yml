@@ -13,6 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pure C# rules run without an editor or Unity license, in the same SDK as local checks.
+  core-rules:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:8.0
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run offline core checks
+        run: dotnet run --project Tests/Nova.Core.Checks.csproj
+
   # Non-Unity Linux gate: repo structure + identifier consistency. No secrets needed.
   structure:
     runs-on: ubuntu-latest
