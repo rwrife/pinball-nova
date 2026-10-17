@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <Compile Include="../Assets/Scripts/Core/*.cs" />
+    <Compile Include="../Assets/Scripts/Persistence/*.cs" />
+    <Compile Include="../Assets/Tests/EditMode/CoreRulesChecks.cs" />
+  </ItemGroup>
+</Project>

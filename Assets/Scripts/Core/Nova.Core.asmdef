@@ -2,5 +2,9 @@
   "name": "Nova.Core",
   "rootNamespace": "Nova.Core",
   "references": [],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ],
   "noEngineReferences": true
 }

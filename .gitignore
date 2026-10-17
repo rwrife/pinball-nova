@@ -11,6 +11,7 @@
 
 # Unity-generated project files
 *.csproj
+!/Tests/Nova.Core.Checks.csproj
 *.unityproj
 *.sln
 *.suo
@@ -37,6 +38,12 @@ crashlytics-build.properties
 /TestResults/
 *.trx
 coverage/
+
+# Offline .NET checks (plain-core test harness) build output
+/Tests/bin/
+/Tests/obj/
+/Tests/.dotnet/
+/Tests/.nuget/
 
 # IDE
 .vs/
