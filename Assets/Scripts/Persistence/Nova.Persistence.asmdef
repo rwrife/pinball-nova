@@ -1,6 +1,8 @@
 {
   "name": "Nova.Persistence",
   "rootNamespace": "Nova.Persistence",
-  "references": [],
+  "references": [
+    "Nova.Core"
+  ],
   "noEngineReferences": false
 }

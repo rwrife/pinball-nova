@@ -10,5 +10,13 @@ namespace Nova.Core.Tests
         {
             Assert.AreEqual("Nova.Core", Identity.Name);
         }
+
+        [Test] public void ScoringTable() => CoreRulesChecks.ScoringTable();
+        [Test] public void LaneChainRaisesMultiplier() => CoreRulesChecks.LaneChainRaisesMultiplier();
+        [Test] public void BallSaveExpires() => CoreRulesChecks.BallSaveExpires();
+        [Test] public void MultiballStartAndEnd() => CoreRulesChecks.MultiballStartAndEnd();
+        [Test] public void DrainEdgeCases() => CoreRulesChecks.DrainEdgeCases();
+        [Test] public void RecordBookRoundTrip() => CoreRulesChecks.RecordBookRoundTrip();
+        [Test] public void RecordBookDetectsTamper() => CoreRulesChecks.RecordBookDetectsTamper();
     }
 }
